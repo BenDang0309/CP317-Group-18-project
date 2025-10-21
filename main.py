@@ -1,0 +1,79 @@
+"""
+-------------------------------------------------------
+[program description]
+-------------------------------------------------------
+Author:  Ben Dang
+ID:      169071532
+Email:   dang1532@mylaurier.ca
+__updated__ = "2025-10-21"
+-------------------------------------------------------
+"""
+# Imports
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import httpx
+import math
+# Constants
+app = FastAPI(title="Laurier Route Planner")  # name is wip
+USER_AGENT = "CP317-Group-18-project (contact: dang1532@mylaurier.ca)"  # my email for nominatim
+
+
+class RouteReq(BaseModel):
+    start: str
+    destination: str
+    mode: str = "driving"  # driving or walking
+
+
+async def geocode_nominatim(address: str):  # async so that you don't get fucked with multiple calls
+    url = "https://nominatim.openstreetmap.org/search"
+    params = {"q": address, "format": "json", "limit": 1}
+    headers = {"User-Agent": USER_AGENT}
+    async with httpx.AsyncClient(timeout=10.0) as client:
+# honestly nominatim lookup should only take a couple hundred ms
+# but I made timeout 5s cuz my internet is straight ASS so its just to make sure
+        r = await client.get(url, params=params, headers=headers)
+    r.raise_for_status()
+    data = r.json()
+    if not data:  # if the result is empty
+        raise ValueError(f"Geocode failed: {address}")
+    lat = float(data[0]["lat"])
+    lon = float(data[0]["lon"])
+    return lat, lon  # latitude, longitude as floats cuz osrm wants floats
+
+
+async def osrm_route(from_coord, to_coord, mode="driving"):
+    coords = f"{from_coord[1]},{from_coord[0]};{to_coord[1]},{to_coord[0]}"
+    url = f"https://router.project-osrm.org/route/v1/{mode}/{coords}"
+    params = {"overview": "full", "geometries": "geojson", "steps": "true"}
+    # overview=full for full geometry
+    # geometries=geojson returns coordinates as arrays
+    # steps=true for instructions
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        # route computation is more complex so I quadrupled the timeout to 20s
+        r = await client.get(url, params=params)
+    r.raise_for_status()
+    j = r.json()
+    if j.get("code") != "Ok" or not j.get("routes"):  # check if a route exists
+        raise ValueError("OSRM route failed")
+    rt = j["routes"][0]
+    geometry = rt["geometry"]["coordinates"]  # list of [lon, lat]
+    poly = [[lat, lon] for lon, lat in geometry]  # convert to [lat, lon] for leaflet (wip, might change frontend)
+    distance_m = float(rt["distance"])
+    duration_s = float(rt["duration"])
+    legs = rt.get("legs", [])  # osrm splits a route into legs (segments) between waypoints
+    steps = []
+    if legs:  # check if its non-empty
+        steps = legs[0].get("steps", [])
+    return {"polyline": poly, "distance_m": distance_m, "duration_s": duration_s, "steps": steps}  # dict
+
+
+def haversine_km(a, b):  # https://en.wikipedia.org/wiki/Haversine_formula, just in case osrm fails
+    # a,b = (lat,lon)
+    R = 6371.0
+    lat1, lon1 = math.radians(a[0]), math.radians(a[1])
+    lat2, lon2 = math.radians(b[0]), math.radians(b[1])
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    hav = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+    return 2 * R * math.asin(math.sqrt(hav))
+
