@@ -66,8 +66,8 @@ async def osrm_route(from_coord, to_coord, mode="driving"):
         steps = legs[0].get("steps", [])
     return {"polyline": poly, "distance_m": distance_m, "duration_s": duration_s, "steps": steps}  # dict
 
-
-def haversine_km(a, b):  # https://en.wikipedia.org/wiki/Haversine_formula, just in case osrm fails
+# https://community.esri.com/t5/coordinate-reference-systems-blog/distance-on-a-sphere-the-haversine-formula/ba-p/902128
+def haversine_km(a, b):  # just in case osrm fails
     # a,b = (lat,lon)
     R = 6371.0
     lat1, lon1 = math.radians(a[0]), math.radians(a[1])
