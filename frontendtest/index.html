@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laurier Route Planner Prototype</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        #map { height: 90vh; width: 100%; }
+        #controls {
+            padding: 10px;
+            background: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            align-items: center;
+        }
+        select, button { padding: 6px 12px; }
+        #info { text-align: center; padding: 5px; }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <select id="routeSelect">
+            <option value="">-- Select a route preset --</option>
+            <option value="laurier_to_conestoga">Laurier → Conestoga Mall</option>
+            <option value="laurier_to_uptown">Laurier → Uptown Waterloo</option>
+            <option value="laurier_to_uwaterloo">Laurier → University of Waterloo</option>
+            <option value="laurier_to_rimpark">Laurier → RIM Park</option>
+        </select>
+        <button onclick="showDummyRoute()">Show Route</button>
+    </div>
+
+    <div id="map"></div>
+    <div id="info"></div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([43.4731, -80.5267], 13); // Laurier
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        let routeLayer = null;
+
+        // Dummy route data (simple polylines + distance/time)
+        const dummyRoutes = {
+            laurier_to_conestoga: {
+                polyline: [
+                    [43.4731, -80.5267],
+                    [43.4871, -80.5255],
+                    [43.4947, -80.5259],
+                    [43.5004, -80.5231]
+                ],
+                distance_m: 3800,
+                duration_s: 540
+            },
+            laurier_to_uptown: {
+                polyline: [
+                    [43.4731, -80.5267],
+                    [43.4729, -80.5230],
+                    [43.4687, -80.5205],
+                    [43.4660, -80.5191]
+                ],
+                distance_m: 1500,
+                duration_s: 260
+            },
+            laurier_to_uwaterloo: {
+                polyline: [
+                    [43.4731, -80.5267],
+                    [43.4745, -80.5400],
+                    [43.4764, -80.5440],
+                    [43.4776, -80.5475]
+                ],
+                distance_m: 2400,
+                duration_s: 400
+            },
+            laurier_to_rimpark: {
+                polyline: [
+                    [43.4731, -80.5267],
+                    [43.4860, -80.5070],
+                    [43.5000, -80.4800],
+                    [43.5115, -80.4520]
+                ],
+                distance_m: 8200,
+                duration_s: 980
+            }
+        };
+
+        function showDummyRoute() {
+            const choice = document.getElementById("routeSelect").value;
+            if (!choice) {
+                alert("Please select a preset route.");
+                return;
+            }
+
+            const data = dummyRoutes[choice];
+
+            if (routeLayer) map.removeLayer(routeLayer);
+
+            routeLayer = L.polyline(data.polyline, { color: "blue", weight: 5 }).addTo(map);
+            map.fitBounds(routeLayer.getBounds());
+
+            const start = data.polyline[0];
+            const end = data.polyline[data.polyline.length - 1];
+            L.marker(start).addTo(map).bindPopup("Start").openPopup();
+            L.marker(end).addTo(map).bindPopup("Destination");
+
+            const km = (data.distance_m / 1000).toFixed(2);
+            const min = (data.duration_s / 60).toFixed(1);
+            document.getElementById("info").innerHTML =
+                `<b>Distance:</b> ${km} km | <b>Duration:</b> ${min} min`;
+        }
+    </script>
+</body>
+</html>
