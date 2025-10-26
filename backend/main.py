@@ -11,10 +11,18 @@ __updated__ = "2025-10-26"
 # Imports
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 import httpx
 import math  # only for haversine
 # Constants
 app = FastAPI(title="Laurier Route Planner")  # name is wip
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://bendang0309.github.io","https://cp317-group-18-project.onrender.com"],  
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 USER_AGENT = "CP317-Group-18-project (contact: dang1532@mylaurier.ca)"  # my email for nominatim
 
 
