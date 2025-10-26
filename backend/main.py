@@ -5,14 +5,14 @@
 Author:  Ben Dang
 ID:      169071532
 Email:   dang1532@mylaurier.ca
-__updated__ = "2025-10-21"
+__updated__ = "2025-10-26"
 -------------------------------------------------------
 """
 # Imports
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import httpx
-import math
+import math  # only for haversine
 # Constants
 app = FastAPI(title="Laurier Route Planner")  # name is wip
 USER_AGENT = "CP317-Group-18-project (contact: dang1532@mylaurier.ca)"  # my email for nominatim
@@ -41,7 +41,7 @@ async def geocode_nominatim(address: str):
     return lat, lon  # latitude, longitude as floats cuz osrm wants floats
 
 
-async def osrm_route(from_coord, to_coord, mode="driving"):
+async def osrm_route(from_coord, to_coord, mode="driving"):  # osrm api
     coords = f"{from_coord[1]},{from_coord[0]};{to_coord[1]},{to_coord[0]}"
     url = f"https://router.project-osrm.org/route/v1/{mode}/{coords}"
     params = {"overview": "full", "geometries": "geojson", "steps": "true"}
@@ -66,6 +66,7 @@ async def osrm_route(from_coord, to_coord, mode="driving"):
         steps = legs[0].get("steps", [])
     return {"polyline": poly, "distance_m": distance_m, "duration_s": duration_s, "steps": steps}  # dict
 
+
 # https://community.esri.com/t5/coordinate-reference-systems-blog/distance-on-a-sphere-the-haversine-formula/ba-p/902128
 def haversine_km(a, b):  # just in case osrm fails
     # a,b = (lat,lon)
@@ -77,3 +78,47 @@ def haversine_km(a, b):  # just in case osrm fails
     hav = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
     return 2 * R * math.asin(math.sqrt(hav))
 
+
+@app.post("/service/v1/route")
+async def get_route(req: RouteReq):
+    # 1) geocode start and dest
+    try:
+        start_coord = await geocode_nominatim(req.start)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Start geocode failed: {e}")
+    try:
+        dest_coord = await geocode_nominatim(req.destination)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Destination geocode failed: {e}")
+
+    # 2) OSRM
+    try:
+        res = await osrm_route(start_coord, dest_coord, mode=req.mode)
+        return {
+            "start": req.start,
+            "destination": req.destination,
+            "start_coord": start_coord,
+            "dest_coord": dest_coord,
+            "distance_m": res["distance_m"],
+            "duration_s": res["duration_s"],
+            "polyline": res["polyline"],
+            "steps": res["steps"],
+            "source": "osrm",
+            "fallback": False
+        }
+    except Exception as e:
+        # if osrm fails try haversine
+        km = haversine_km(start_coord, dest_coord)
+        return {
+            "start": req.start,
+            "destination": req.destination,
+            "start_coord": start_coord,
+            "dest_coord": dest_coord,
+            "distance_m": round(km * 1000, 1),
+            "duration_s": None,
+            "polyline": [[start_coord[0], start_coord[1]], [dest_coord[0], dest_coord[1]]],
+            "steps": [],
+            "source": "haversine_fallback",
+            "fallback": True,
+            "error": str(e)
+        }
