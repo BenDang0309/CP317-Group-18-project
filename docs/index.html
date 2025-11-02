@@ -185,7 +185,7 @@ function getUserLocation() {
 
       // ✅ Auto-fill the start field
       const startInput = document.getElementById("start");
-      startInput.value = {lat.toFixed(5)}, {lon.toFixed(5)};
+      startInput.value = `My Location (${lat.toFixed(5)}, ${lon.toFixed(5)})`;
       startInput.dataset.lat = lat;
       startInput.dataset.lon = lon;
     },
