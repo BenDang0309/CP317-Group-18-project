@@ -29,7 +29,7 @@ USER_AGENT = "CP317-Group-18-project (contact: dang1532@mylaurier.ca)"  # my ema
 class RouteReq(BaseModel):
     start: str
     destination: str
-    mode: str = "driving"  # driving or walking
+    mode: str = "walking"  # driving or walking
 
 
 async def geocode_nominatim(address: str):
