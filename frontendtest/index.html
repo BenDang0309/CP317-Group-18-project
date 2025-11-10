@@ -118,7 +118,7 @@
       }
 
       try {
-        const res = await fetch("http://127.0.0.1:8000/service/v1/route", {
+        const res = await fetch("https://cp317-group-18-project.onrender.com/service/v1/route", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ start, destination: dest, mode: "driving" }),
@@ -157,7 +157,6 @@
       L.marker(start).addTo(map).bindPopup("Start").openPopup();
       L.marker(end).addTo(map).bindPopup("Destination");
     }
-
     // 📍 Use My Location
     // 📍 Use My Location
 function getUserLocation() {
@@ -196,6 +195,10 @@ function getUserLocation() {
     }
   );
 }
+
+  </script>
+</body>
+</html>
 
   </script>
 </body>
