@@ -70,9 +70,9 @@ async function findWalkingBuddy() {
   document.getElementById("status").innerText = "Finding nearby walkers... ⏳";
 
   const reqBody = {
-    user_id: "keith",
+    user_id: "user_" + Math.random().toString(26).substring(2, 9),
     start_coord: userCoords,
-    dest_coord: [43.4776, -80.5475], // you can replace with a real geocoded dest later
+    destination_address: destValue, // Send the address string for the backend to geocode
     timestamp: new Date().toISOString(),
   };
 
@@ -96,7 +96,7 @@ async function findWalkingBuddy() {
 
     // Add markers for each buddy
     data.matches.forEach((buddy) => {
-      const marker = L.marker(buddy.dest_coord)
+      const marker = L.marker(buddy.start_coord) // The backend will return the buddy start location
         .addTo(map)
         .bindPopup(
           `<b>${buddy.user_id}</b><br>Distance: ${buddy.distance_km} km away`
