@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
 import math  # only for haversine
+from typing import List, Optional
 # Constants
 app = FastAPI(title="Laurier Route Planner")  # name is wip
 app.add_middleware(
