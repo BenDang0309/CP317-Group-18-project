@@ -31,6 +31,12 @@ class RouteReq(BaseModel):
     destination: str
     mode: str = "walking"  # driving or walking
 
+# this is going to define the models for booking system on the Walking Buddy
+class BookingRequest(BaseModel):
+    user_id: str
+    start_coord: List[float] # [lat, lon]
+    destination_address: str # Send address and geocode on backend
+    timestamp: str
 
 async def geocode_nominatim(address: str):
     url = "https://nominatim.openstreetmap.org/search"
@@ -130,3 +136,71 @@ async def get_route(req: RouteReq):
             "fallback": True,
             "error": str(e)
         }
+
+BOOKING_DB = [] # this is just to store temporarily like a database
+MATCH_DISTANCE_KM = 1.0 # if two users start within 1.0 km of each other then that would be a match
+
+@app.post("/service/v1/walking_buddy")
+# I am not going to be creative with the name lol
+async def book_walk_and_find_buddies(req: BookingRequest):
+
+    # Grocoding the user's destination and its better to do it on the backend cuz we got the function for it here
+    # Also its better to send less data from frontend
+    try:
+        dest_coord = await geocode_nominatim(req.destination_address)
+    except Exception as e:
+        # if the address is not an actual address this should fail
+        raise HTTPException(status_code=400, detail=f"Destination geocode failed: {e}"
+
+    # new booking object for defintions makes it easier for me to call
+    new_booking = {
+        "user_id": req.user_id,
+        "start_coord": req.start_coord,
+        "destination_address": req.destination_address, # Store the address string
+        "dest_coord": dest_coord, # Store the geocoded coordinates
+        "timestamp": req.timestamp
+    }
+
+    # This is supposed to find matches by looping through the temporary list as a database
+    matches = []
+    for booking in BOOKING_DB:
+        # can't let the user match with themselves
+        if booking["user_id"] == req.user_id:
+            continue
+
+        # uses the haversine function to find the distance between the user start and the other user start point.
+        dist_km = haversine_km(req.start_coord, booking["start_coord"])
+
+        # If the distance between them is between the 1 km then its a match.
+        if dist_km <= MATCH_DISTANCE_KM:
+            matches.append({
+                "user_id": r["user_id"],
+                "start_coord": r["start_coord"],
+                "distance_km": dist_km
+            })
+    # Saves the new booking to the list
+    BOOKING_DB.append(new_booking)
+
+    #  Sends back both the confirmation of their booking and the list of matches that's found
+    return {
+        "booking": new_booking,
+        "matches": { 
+            "count": len(matches),
+            "matches": matches
+        }
+    }
+
+@app.get("/service/v1/my_bookings")
+async def get_bookings(user_id: str):
+    # Checks if the frontend actually sent a user_id
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id is required")
+
+    # Creating a new list containing the bookings the user makes
+    my_bookings = [b for b in BOOKINGS_DB if b["user_id"] == user_id]
+
+    # Sorts the user booking from newest to oldest the key=lambda tells the sort function to look at the timestamp
+    # Also the reverse=True just means that its sorted newest to oldest.
+    my_bookings.sort(key=lambda b: b["timestamp"], reverse=True)
+    # Should return a filtered and sorted list
+    return my_bookings
