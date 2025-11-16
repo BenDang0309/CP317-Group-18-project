@@ -151,7 +151,7 @@ async def book_walk_and_find_buddies(req: BookingRequest):
         dest_coord = await geocode_nominatim(req.destination_address)
     except Exception as e:
         # if the address is not an actual address this should fail
-        raise HTTPException(status_code=400, detail=f"Destination geocode failed: {e}"
+        raise HTTPException(status_code=400, detail=f"Destination geocode failed: {e}")
 
     # new booking object for defintions makes it easier for me to call
     new_booking = {
